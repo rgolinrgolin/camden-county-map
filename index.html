@@ -1,0 +1,69 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camden County Interactive Map</title>
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script>
+        var map;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: {lat: 39.9259, lng: -75.1196},
+                zoom: 10
+            });
+
+            // Load GeoJSON data
+            d3.json('Municipal_Boundaries_of_NJ.geojson').then(function(geojsonData) {
+                // Load CSV data
+                d3.csv('Camden_County_Square_Feet.csv').then(function(csvData) {
+                    var dataMap = {};
+                    csvData.forEach(function(row) {
+                        dataMap[row['Municipality']] = +row['amount_of_sq_ft_for_500000_in_March_2024'];
+                    });
+
+                    var colorScale = d3.scaleSequential(d3.interpolateGreens)
+                        .domain([0, d3.max(csvData, function(d) { return +d['amount_of_sq_ft_for_500000_in_March_2024']; })]);
+
+                    map.data.addGeoJson(geojsonData);
+
+                    map.data.setStyle(function(feature) {
+                        var value = dataMap[feature.getProperty('NAME')];
+                        return {
+                            fillColor: value ? colorScale(value) : '#ccc',
+                            strokeWeight: 1,
+                            fillOpacity: 0.7
+                        };
+                    });
+
+                    var infoWindow = new google.maps.InfoWindow();
+
+                    map.data.addListener('mouseover', function(event) {
+                        var value = dataMap[event.feature.getProperty('NAME')];
+                        var content = event.feature.getProperty('NAME') + ": " + value + " sq. ft. for $500,000";
+                        infoWindow.setContent(content);
+                        infoWindow.setPosition(event.latLng);
+                        infoWindow.open(map);
+                    });
+
+                    map.data.addListener('mouseout', function(event) {
+                        infoWindow.close();
+                    });
+                });
+            });
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
